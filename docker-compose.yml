@@ -1,0 +1,50 @@
+# AI中转站一键部署模板 · v1.0
+# 使用前请把所有 <请替换> 的字段填上，docker compose up -d 即可启动
+# 依赖：已装好Docker、Cloudflare WARP（见install.sh）
+
+version: '3.8'
+
+services:
+  sub2api:
+    image: weishaw/sub2api:latest
+    container_name: sub2api_core
+    restart: always
+    network_mode: "host"
+    environment:
+      - TZ=Asia/Shanghai
+      - GIN_MODE=release
+      - SUB2API_ENV=production
+      - SERVER_PORT=8080
+      - SERVER_HOST=0.0.0.0
+      - SERVER_HTTPS=false
+
+      # ===== Neon PostgreSQL =====
+      - DATABASE_HOST=<请替换,Neon dashboard Connect string里的host>
+      - DATABASE_PORT=5432
+      - DATABASE_USER=<请替换,默认是neondb_owner>
+      - DATABASE_PASSWORD=<请替换,Neon给的密码>
+      - DATABASE_DBNAME=neondb
+      - DATABASE_SSL_MODE=require
+
+      # ===== Upstash Redis =====
+      - REDIS_HOST=<请替换,Upstash Endpoint里的域名>
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=<请替换,Upstash给的token>
+      - REDIS_USE_TLS=true
+
+      # ===== WARP SOCKS5(装了WARP才解注释,否则会双代理延迟爆炸) =====
+      # - HTTP_PROXY=socks5h://127.0.0.1:40000
+      # - HTTPS_PROXY=socks5h://127.0.0.1:40000
+      # - ALL_PROXY=socks5h://127.0.0.1:40000
+      # - NO_PROXY=localhost,127.0.0.1,::1
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared_tunnel
+    restart: always
+    network_mode: "host"
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=<请替换,Cloudflare Zero Trust里Tunnel的token>
+    depends_on:
+      - sub2api
